@@ -25,11 +25,11 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 let truck = { 
-    x: 150, y: 300, angle: 0, speed: 0,
+    x: 150, y: 300, angle: 0, speed: 0, steerAngle: 0,
     trailerX: 90, trailerY: 300, trailerAngle: 0
 };
 let parkingSlot = { x: 600, y: 250, w: 140, h: 60 };
-let obstacles = [];
+let parkedTrucks = [];
 let currentLevel = 1;
 
 const keys = {};
@@ -38,23 +38,36 @@ window.addEventListener('keyup', e => keys[e.code] = false);
 
 function startLevel(level) {
     currentLevel = level;
-    truck = { x: 150, y: 300, angle: 0, speed: 0, trailerX: 90, trailerY: 300, trailerAngle: 0 };
-    if (level === 1) obstacles = [];
-    if (level === 2) obstacles = [{x: 400, y: 150, w: 40, h: 300}];
-    if (level === 3) obstacles = [{x: 300, y: 100, w: 400, h: 40}, {x: 500, y: 350, w: 40, h: 200}];
+    truck = { x: 150, y: 300, angle: 0, speed: 0, steerAngle: 0, trailerX: 90, trailerY: 300, trailerAngle: 0 };
+    
+    if (level === 1) {
+        parkedTrucks = [];
+        parkingSlot = { x: 600, y: 250, w: 140, h: 60 };
+    }
+    if (level === 2) {
+        parkedTrucks = [{x: 600, y: 150, angle: 0}];
+        parkingSlot = { x: 600, y: 250, w: 140, h: 60 };
+    }
+    if (level === 3) {
+        parkedTrucks = [{x: 600, y: 170, angle: 0}, {x: 600, y: 330, angle: 0}];
+        parkingSlot = { x: 600, y: 250, w: 140, h: 60 };
+    }
 }
 
 function update() {
-    if (keys['ArrowUp']) truck.speed = Math.min(truck.speed + 0.08, 2.5);
-    else if (keys['ArrowDown']) truck.speed = Math.max(truck.speed - 0.08, -1.5);
+    if (keys['ArrowUp']) truck.speed = Math.min(truck.speed + 0.05, 2.0);
+    else if (keys['ArrowDown']) truck.speed = Math.max(truck.speed - 0.05, -1.0);
     else truck.speed *= 0.92;
 
-    let turnRate = 0.035 * (truck.speed / 2.5);
-    if (keys['ArrowLeft']) truck.angle -= turnRate;
-    if (keys['ArrowRight']) truck.angle += turnRate;
+    if (keys['ArrowLeft']) truck.steerAngle = Math.max(truck.steerAngle - 0.05, -0.5);
+    else if (keys['ArrowRight']) truck.steerAngle = Math.min(truck.steerAngle + 0.05, 0.5);
+    else truck.steerAngle *= 0.8;
 
+    // Bicycle model for realistic turning
+    let wheelbase = 30;
     truck.x += Math.cos(truck.angle) * truck.speed;
     truck.y += Math.sin(truck.angle) * truck.speed;
+    truck.angle += (truck.speed / wheelbase) * Math.tan(truck.steerAngle);
 
     // Physics-based trailer tracking
     let hitchX = truck.x - Math.cos(truck.angle) * 15;
@@ -64,22 +77,44 @@ function update() {
     let dy = hitchY - truck.trailerY;
     let dist = Math.sqrt(dx*dx + dy*dy);
     
-    // Pull the trailer towards the hitch point
     if (dist > 0) {
         truck.trailerX += (dx / dist) * (dist - 45);
         truck.trailerY += (dy / dist) * (dist - 45);
     }
     
-    // Calculate new trailer angle based on its movement
     let tdx = hitchX - truck.trailerX;
     let tdy = hitchY - truck.trailerY;
     truck.trailerAngle = Math.atan2(tdy, tdx);
 }
 
+function drawTruck(x, y, angle, trailerX, trailerY, trailerAngle, isPlayer) {
+    // Draw Trailer
+    ctx.save();
+    ctx.translate(trailerX, trailerY);
+    ctx.rotate(trailerAngle);
+    ctx.fillStyle = isPlayer ? '#e67e22' : '#7f8c8d';
+    ctx.fillRect(-45, -18, 70, 36);
+    ctx.fillStyle = isPlayer ? '#d35400' : '#616a6b';
+    ctx.fillRect(-40, -15, 60, 30);
+    ctx.restore();
+
+    // Draw Cab
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.fillStyle = isPlayer ? '#c0392b' : '#34495e';
+    ctx.fillRect(-15, -15, 40, 30);
+    ctx.fillStyle = isPlayer ? '#e74c3c' : '#5dade2';
+    ctx.fillRect(-5, -12, 25, 24);
+    ctx.fillStyle = '#bdc3c7';
+    ctx.fillRect(10, -10, 8, 20);
+    ctx.restore();
+}
+
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw Cargo Hold Floor (Grid)
+    // Draw Cargo Hold Floor
     ctx.fillStyle = '#2c3e50';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = '#34495e';
@@ -92,31 +127,14 @@ function draw() {
     ctx.lineWidth = 4;
     ctx.strokeRect(parkingSlot.x, parkingSlot.y, parkingSlot.w, parkingSlot.h);
     
-    // Draw Obstacles
-    ctx.fillStyle = '#7f8c8d';
-    obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
+    // Draw Parked Trucks
+    parkedTrucks.forEach(t => {
+        let tx = t.x - 60;
+        drawTruck(t.x, t.y, t.angle, tx, t.y, t.angle, false);
+    });
 
-    // Draw Trailer (Cargo)
-    ctx.save();
-    ctx.translate(truck.trailerX, truck.trailerY);
-    ctx.rotate(truck.trailerAngle);
-    ctx.fillStyle = '#e67e22';
-    ctx.fillRect(-45, -18, 70, 36);
-    ctx.fillStyle = '#d35400';
-    ctx.fillRect(-40, -15, 60, 30); // Inner detail
-    ctx.restore();
-
-    // Draw Cab (Driver's Area)
-    ctx.save();
-    ctx.translate(truck.x, truck.y);
-    ctx.rotate(truck.angle);
-    ctx.fillStyle = '#c0392b';
-    ctx.fillRect(-15, -15, 40, 30);
-    ctx.fillStyle = '#e74c3c';
-    ctx.fillRect(-5, -12, 25, 24); // Hood
-    ctx.fillStyle = '#bdc3c7';
-    ctx.fillRect(10, -10, 8, 20); // Windshield
-    ctx.restore();
+    // Draw Player Truck
+    drawTruck(truck.x, truck.y, truck.angle, truck.trailerX, truck.trailerY, truck.trailerAngle, true);
 }
 
 function loop() {
