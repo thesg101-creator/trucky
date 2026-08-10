@@ -14,8 +14,8 @@ button { padding: 10px 20px; font-size: 16px; margin: 0 5px; cursor: pointer; }
 <body>
 <div id="ui">
 <h1>Truck Parking Game</h1>
-<p>Use Arrow Keys to Drive. Park in the yellow slot!</p>
-<button onclick="startLevel(1)">Level 1 (Empty)</button>
+<p>Use Arrow Keys to Drive. Back into the yellow loading dock!</p>
+<button onclick="startLevel(1)">Level 1 (Empty Dock)</button>
 <button onclick="startLevel(2)">Level 2 (Some Trucks)</button>
 <button onclick="startLevel(3)">Level 3 (Tight Fit)</button>
 </div>
@@ -25,10 +25,10 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 let truck = { 
-    x: 150, y: 300, angle: 0, speed: 0, steerAngle: 0,
-    trailerX: 90, trailerY: 300, trailerAngle: 0
+    x: 400, y: 450, angle: -Math.PI/2, speed: 0, steerAngle: 0,
+    trailerX: 400, trailerY: 510, trailerAngle: -Math.PI/2
 };
-let parkingSlot = { x: 600, y: 250, w: 140, h: 60 };
+let parkingSlot = { x: 375, y: 20, w: 50, h: 120 };
 let parkedTrucks = [];
 let currentLevel = 1;
 
@@ -38,19 +38,16 @@ window.addEventListener('keyup', e => keys[e.code] = false);
 
 function startLevel(level) {
     currentLevel = level;
-    truck = { x: 150, y: 300, angle: 0, speed: 0, steerAngle: 0, trailerX: 90, trailerY: 300, trailerAngle: 0 };
+    truck = { x: 400, y: 450, angle: -Math.PI/2, speed: 0, steerAngle: 0, trailerX: 400, trailerY: 510, trailerAngle: -Math.PI/2 };
     
     if (level === 1) {
         parkedTrucks = [];
-        parkingSlot = { x: 600, y: 250, w: 140, h: 60 };
     }
     if (level === 2) {
-        parkedTrucks = [{x: 600, y: 150, angle: 0}];
-        parkingSlot = { x: 600, y: 250, w: 140, h: 60 };
+        parkedTrucks = [{x: 320, y: 80, angle: -Math.PI/2}];
     }
     if (level === 3) {
-        parkedTrucks = [{x: 600, y: 170, angle: 0}, {x: 600, y: 330, angle: 0}];
-        parkingSlot = { x: 600, y: 250, w: 140, h: 60 };
+        parkedTrucks = [{x: 320, y: 80, angle: -Math.PI/2}, {x: 480, y: 80, angle: -Math.PI/2}];
     }
 }
 
@@ -63,13 +60,11 @@ function update() {
     else if (keys['ArrowRight']) truck.steerAngle = Math.min(truck.steerAngle + 0.05, 0.5);
     else truck.steerAngle *= 0.8;
 
-    // Bicycle model for realistic turning
     let wheelbase = 30;
     truck.x += Math.cos(truck.angle) * truck.speed;
     truck.y += Math.sin(truck.angle) * truck.speed;
     truck.angle += (truck.speed / wheelbase) * Math.tan(truck.steerAngle);
 
-    // Physics-based trailer tracking
     let hitchX = truck.x - Math.cos(truck.angle) * 15;
     let hitchY = truck.y - Math.sin(truck.angle) * 15;
     
@@ -117,10 +112,16 @@ function draw() {
     // Draw Cargo Hold Floor
     ctx.fillStyle = '#2c3e50';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = '#34495e';
-    ctx.lineWidth = 1;
-    for(let i=0; i<800; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,600); ctx.stroke(); }
-    for(let i=0; i<600; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(800,i); ctx.stroke(); }
+    
+    // Draw Loading Dock Area
+    ctx.fillStyle = '#34495e';
+    ctx.fillRect(0, 0, canvas.width, 140);
+    
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    for(let i=0; i<=800; i+=80) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 140); ctx.stroke();
+    }
     
     // Draw Parking Slot
     ctx.strokeStyle = '#f1c40f';
@@ -129,8 +130,8 @@ function draw() {
     
     // Draw Parked Trucks
     parkedTrucks.forEach(t => {
-        let tx = t.x - 60;
-        drawTruck(t.x, t.y, t.angle, tx, t.y, t.angle, false);
+        let ty = t.y + 60;
+        drawTruck(t.x, t.y, t.angle, t.x, ty, t.angle, false);
     });
 
     // Draw Player Truck
