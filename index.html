@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Truck Parking Game</title>
 <style>
-body { margin: 0; background: #222; color: #fff; font-family: sans-serif; text-align: center; }
-canvas { background: #333; display: block; margin: 20px auto; border: 4px solid #111; }
+body { margin: 0; background: #1a1a1a; color: #fff; font-family: sans-serif; text-align: center; }
+canvas { background: #2c3e50; display: block; margin: 20px auto; border: 6px solid #34495e; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
 #ui { margin-top: 10px; }
+button { padding: 10px 20px; font-size: 16px; margin: 0 5px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -24,10 +25,10 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 let truck = { 
-    x: 100, y: 300, angle: 0, speed: 0,
-    trailerX: 70, trailerY: 300, trailerAngle: 0
+    x: 150, y: 300, angle: 0, speed: 0,
+    trailerX: 90, trailerY: 300, trailerAngle: 0
 };
-let parkingSlot = { x: 600, y: 250, w: 120, h: 50 };
+let parkingSlot = { x: 600, y: 250, w: 140, h: 60 };
 let obstacles = [];
 let currentLevel = 1;
 
@@ -37,63 +38,84 @@ window.addEventListener('keyup', e => keys[e.code] = false);
 
 function startLevel(level) {
     currentLevel = level;
-    truck = { x: 100, y: 300, angle: 0, speed: 0, trailerX: 60, trailerY: 300, trailerAngle: 0 };
+    truck = { x: 150, y: 300, angle: 0, speed: 0, trailerX: 90, trailerY: 300, trailerAngle: 0 };
     if (level === 1) obstacles = [];
-    if (level === 2) obstacles = [{x: 400, y: 200, w: 50, h: 200}];
-    if (level === 3) obstacles = [{x: 300, y: 100, w: 400, h: 50}, {x: 500, y: 400, w: 50, h: 200}];
+    if (level === 2) obstacles = [{x: 400, y: 150, w: 40, h: 300}];
+    if (level === 3) obstacles = [{x: 300, y: 100, w: 400, h: 40}, {x: 500, y: 350, w: 40, h: 200}];
 }
 
 function update() {
-    if (keys['ArrowUp']) truck.speed = Math.min(truck.speed + 0.1, 2);
-    else if (keys['ArrowDown']) truck.speed = Math.max(truck.speed - 0.1, -1);
-    else truck.speed *= 0.95;
+    if (keys['ArrowUp']) truck.speed = Math.min(truck.speed + 0.08, 2.5);
+    else if (keys['ArrowDown']) truck.speed = Math.max(truck.speed - 0.08, -1.5);
+    else truck.speed *= 0.92;
 
-    if (keys['ArrowLeft']) truck.angle -= 0.03 * (truck.speed / 2);
-    if (keys['ArrowRight']) truck.angle += 0.03 * (truck.speed / 2);
+    let turnRate = 0.035 * (truck.speed / 2.5);
+    if (keys['ArrowLeft']) truck.angle -= turnRate;
+    if (keys['ArrowRight']) truck.angle += turnRate;
 
     truck.x += Math.cos(truck.angle) * truck.speed;
     truck.y += Math.sin(truck.angle) * truck.speed;
 
-    // Trailer physics
-    let targetX = truck.x - Math.cos(truck.trailerAngle) * 40;
-    let targetY = truck.y - Math.sin(truck.trailerAngle) * 40;
-    let dx = truck.x - truck.trailerX;
-    let dy = truck.y - truck.trailerY;
-    truck.trailerAngle = Math.atan2(dy, dx);
-    truck.trailerX = truck.x - Math.cos(truck.trailerAngle) * 40;
-    truck.trailerY = truck.y - Math.sin(truck.trailerAngle) * 40;
+    // Physics-based trailer tracking
+    let hitchX = truck.x - Math.cos(truck.angle) * 15;
+    let hitchY = truck.y - Math.sin(truck.angle) * 15;
+    
+    let dx = hitchX - truck.trailerX;
+    let dy = hitchY - truck.trailerY;
+    let dist = Math.sqrt(dx*dx + dy*dy);
+    
+    // Pull the trailer towards the hitch point
+    if (dist > 0) {
+        truck.trailerX += (dx / dist) * (dist - 45);
+        truck.trailerY += (dy / dist) * (dist - 45);
+    }
+    
+    // Calculate new trailer angle based on its movement
+    let tdx = hitchX - truck.trailerX;
+    let tdy = hitchY - truck.trailerY;
+    truck.trailerAngle = Math.atan2(tdy, tdx);
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw Loading Area Floor
-    ctx.fillStyle = '#444';
+    // Draw Cargo Hold Floor (Grid)
+    ctx.fillStyle = '#2c3e50';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#34495e';
+    ctx.lineWidth = 1;
+    for(let i=0; i<800; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,600); ctx.stroke(); }
+    for(let i=0; i<600; i+=40) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(800,i); ctx.stroke(); }
     
     // Draw Parking Slot
-    ctx.strokeStyle = '#ffeb3b';
+    ctx.strokeStyle = '#f1c40f';
     ctx.lineWidth = 4;
     ctx.strokeRect(parkingSlot.x, parkingSlot.y, parkingSlot.w, parkingSlot.h);
     
     // Draw Obstacles
-    ctx.fillStyle = '#666';
+    ctx.fillStyle = '#7f8c8d';
     obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
 
     // Draw Trailer (Cargo)
     ctx.save();
     ctx.translate(truck.trailerX, truck.trailerY);
     ctx.rotate(truck.trailerAngle);
-    ctx.fillStyle = '#2196f3';
-    ctx.fillRect(-30, -15, 50, 30);
+    ctx.fillStyle = '#e67e22';
+    ctx.fillRect(-45, -18, 70, 36);
+    ctx.fillStyle = '#d35400';
+    ctx.fillRect(-40, -15, 60, 30); // Inner detail
     ctx.restore();
 
     // Draw Cab (Driver's Area)
     ctx.save();
     ctx.translate(truck.x, truck.y);
     ctx.rotate(truck.angle);
-    ctx.fillStyle = '#f44336';
-    ctx.fillRect(-10, -12, 30, 24);
+    ctx.fillStyle = '#c0392b';
+    ctx.fillRect(-15, -15, 40, 30);
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(-5, -12, 25, 24); // Hood
+    ctx.fillStyle = '#bdc3c7';
+    ctx.fillRect(10, -10, 8, 20); // Windshield
     ctx.restore();
 }
 
