@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Truck Bay Parking</title>
+  <title>Truck Parking Yard</title>
   <style>
     :root {
-      --bg: #0d151b;
-      --panel: #101a23;
-      --panel-2: #162531;
+      --bg: #0b1218;
+      --panel: #101b24;
+      --road: #2a3744;
+      --grass: #12352b;
       --line: #edf3ff;
-      --line-soft: rgba(237,243,255,0.2);
+      --slot: rgba(255,255,255,0.08);
+      --target: rgba(248, 199, 90, 0.24);
       --gold: #f8c75a;
-      --gold-soft: rgba(248,199,90,0.18);
-      --green: #48d89d;
-      --red: #f26f6f;
+      --green: #4ade80;
+      --red: #f87171;
       --shadow: rgba(0,0,0,0.35);
     }
 
@@ -24,61 +25,16 @@
       margin: 0;
       width: 100%;
       height: 100%;
-      background: linear-gradient(180deg, #0a1118, #0e171f);
+      background: linear-gradient(180deg, #0a1118, #0d171e);
       font-family: Arial, Helvetica, sans-serif;
-      color: #edf3ff;
+      color: white;
     }
 
     body {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 18px;
-    }
-
-    .game-shell {
-      width: 960px;
-      max-width: 100%;
-      background: rgba(10, 16, 22, 0.94);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      box-shadow: 0 28px 60px rgba(0,0,0,0.38);
-      overflow: hidden;
-    }
-
-    .status-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 18px;
-      background: rgba(15, 24, 33, 0.9);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      min-height: 52px;
-      flex-wrap: wrap;
-    }
-
-    #missionText {
-      font-size: 0.98rem;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      color: #eff6ff;
-    }
-
-    #statusPill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 88px;
-      padding: 7px 12px;
-      border-radius: 999px;
-      font-size: 0.74rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      border: 1px solid rgba(74, 222, 128, 0.4);
-      background: rgba(74, 222, 128, 0.14);
-      color: #bbf7d0;
+      padding: 12px;
     }
 
     canvas {
@@ -86,32 +42,19 @@
       width: 960px;
       height: 620px;
       max-width: 100%;
-      background: linear-gradient(180deg, #1d2d38 0%, #101a23 100%);
-      image-rendering: auto;
-    }
-
-    @media (max-width: 760px) {
-      body { padding: 8px; }
-      .game-shell { border-radius: 10px; }
-      .status-row { padding: 10px 12px; }
+      background: linear-gradient(180deg, #1f2d38 0%, #111a23 100%);
+      border-radius: 12px;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.38);
+      border: 1px solid rgba(255,255,255,0.08);
     }
   </style>
 </head>
 <body>
-  <div class="game-shell">
-    <div class="status-row">
-      <div id="missionText">Find the glowing bay and back in clean.</div>
-      <div id="statusPill">Ready</div>
-    </div>
-    <canvas id="gameCanvas" width="960" height="620"></canvas>
-  </div>
+  <canvas id="gameCanvas" width="960" height="620"></canvas>
 
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const missionText = document.getElementById('missionText');
-    const statusPill = document.getElementById('statusPill');
-
     const keys = {};
     let animationId = null;
     let lastFrame = 0;
@@ -132,7 +75,7 @@
 
         this.humOsc = this.ctx.createOscillator();
         this.humOsc.type = 'sawtooth';
-        this.humOsc.frequency.value = 48;
+        this.humOsc.frequency.value = 44;
 
         this.humGain = this.ctx.createGain();
         this.humGain.gain.value = 0.0001;
@@ -147,7 +90,7 @@
         this.humGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.12);
         this.humOsc.frequency.setTargetAtTime(42 + Math.abs(speed) * 26, this.ctx.currentTime, 0.12);
       },
-      tone(freq, duration = 0.16, volume = 0.07, sweep = 0) {
+      tone(freq, duration = 0.15, volume = 0.07, sweep = 0) {
         if (!this.ctx || !this.master) return;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -163,11 +106,11 @@
         osc.stop(this.ctx.currentTime + duration + 0.02);
       },
       success() {
-        this.tone(540, 0.12, 0.08, 120);
-        this.tone(760, 0.14, 0.08, 180);
+        this.tone(540, 0.12, 0.09, 120);
+        this.tone(760, 0.14, 0.09, 180);
       },
       hit() {
-        this.tone(180, 0.16, 0.07, -70);
+        this.tone(180, 0.18, 0.07, -75);
       }
     };
 
@@ -184,39 +127,36 @@
       parkedTrucks: [],
       targetSlot: null,
       lastHitAt: 0,
-      elapsed: 0
+      elapsed: 0,
+      won: false
     };
 
     const player = {
-      x: 120,
-      y: 490,
+      x: 130,
+      y: 520,
       angle: 0,
       speed: 0,
       steer: 0,
+      cabWidth: 24,
       cabLength: 42,
-      cabWidth: 22,
-      trailerLength: 92,
       trailerWidth: 28,
-      hitchLength: 72,
-      trailerX: 120,
-      trailerY: 410,
+      trailerLength: 90,
+      hitchLength: 75,
+      trailerX: 130,
+      trailerY: 440,
       trailerAngle: 0,
-      maxSpeed: 2.7,
-      maxReverse: 1.7
+      maxSpeed: 2.8,
+      maxReverse: 1.8
     };
 
-    function clamp(value, min, max) {
-      return Math.min(max, Math.max(min, value));
-    }
-
+    function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
     function normalizeAngle(a) {
       while (a > Math.PI) a -= Math.PI * 2;
       while (a < -Math.PI) a += Math.PI * 2;
       return a;
     }
-
-    function shuffle(arr) {
-      const copy = [...arr];
+    function shuffle(list) {
+      const copy = [...list];
       for (let i = copy.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [copy[i], copy[j]] = [copy[j], copy[i]];
@@ -224,44 +164,21 @@
       return copy;
     }
 
-    function setStatus(text, tone = 'ready') {
-      missionText.textContent = text;
-      if (tone === 'ready') {
-        statusPill.textContent = 'Ready';
-        statusPill.style.background = 'rgba(74, 222, 128, 0.12)';
-        statusPill.style.borderColor = 'rgba(74, 222, 128, 0.42)';
-        statusPill.style.color = '#bbf7d0';
-      } else if (tone === 'parked') {
-        statusPill.textContent = 'Loaded';
-        statusPill.style.background = 'rgba(59,130,246,0.14)';
-        statusPill.style.borderColor = 'rgba(96,165,250,0.42)';
-        statusPill.style.color = '#dbeafe';
-      } else if (tone === 'hit') {
-        statusPill.textContent = 'Impact';
-        statusPill.style.background = 'rgba(248,113,113,0.12)';
-        statusPill.style.borderColor = 'rgba(248,113,113,0.45)';
-        statusPill.style.color = '#fecaca';
-      }
-    }
-
     function rectForVehicle(x, y, width, length, angle) {
       const hw = width / 2;
       const hl = length / 2;
-      const pts = [
+      const points = [
         { x: -hw, y: -hl },
-        { x:  hw, y: -hl },
-        { x:  hw, y:  hl },
-        { x: -hw, y:  hl }
+        { x: hw, y: -hl },
+        { x: hw, y: hl },
+        { x: -hw, y: hl }
       ].map((p) => {
         const cos = Math.cos(angle);
         const sin = Math.sin(angle);
-        return {
-          x: x + p.x * cos - p.y * sin,
-          y: y + p.x * sin + p.y * cos
-        };
+        return { x: x + p.x * cos - p.y * sin, y: y + p.x * sin + p.y * cos };
       });
-      const xs = pts.map(p => p.x);
-      const ys = pts.map(p => p.y);
+      const xs = points.map(p => p.x);
+      const ys = points.map(p => p.y);
       return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
     }
 
@@ -271,7 +188,7 @@
 
     function resetPlayer() {
       player.x = 120;
-      player.y = 506;
+      player.y = 520;
       player.angle = 0;
       player.speed = 0;
       player.steer = 0;
@@ -285,27 +202,27 @@
       game.status = 'playing';
       game.parkingSpaces = [];
       game.parkedTrucks = [];
+      game.targetSlot = null;
+      game.won = false;
 
-      const slotLayout = [
-        { x: 86, y: 90, w: 150, h: 150 },
-        { x: 262, y: 90, w: 150, h: 150 },
-        { x: 438, y: 90, w: 150, h: 150 },
-        { x: 614, y: 90, w: 150, h: 150 },
-        { x: 86, y: 270, w: 150, h: 150 },
-        { x: 262, y: 270, w: 150, h: 150 },
-        { x: 438, y: 270, w: 150, h: 150 },
-        { x: 614, y: 270, w: 150, h: 150 }
+      const slots = [
+        { x: 70, y: 76, w: 150, h: 120 },
+        { x: 250, y: 76, w: 150, h: 120 },
+        { x: 430, y: 76, w: 150, h: 120 },
+        { x: 610, y: 76, w: 150, h: 120 },
+        { x: 70, y: 246, w: 150, h: 120 },
+        { x: 250, y: 246, w: 150, h: 120 },
+        { x: 430, y: 246, w: 150, h: 120 },
+        { x: 610, y: 246, w: 150, h: 120 }
       ];
 
-      slotLayout.forEach((slot, index) => {
+      slots.forEach((slot, index) => {
         game.parkingSpaces.push({ ...slot, occupied: false, target: false, id: index });
       });
 
       const occupiedCount = clamp(3 + Math.floor(level / 2), 3, 6);
-      const occupied = shuffle([...game.parkingSpaces.keys()]).slice(0, occupiedCount);
-      occupied.forEach((idx) => {
-        game.parkingSpaces[idx].occupied = true;
-      });
+      const occupiedIndexes = shuffle([...game.parkingSpaces.keys()]).slice(0, occupiedCount);
+      occupiedIndexes.forEach((idx) => { game.parkingSpaces[idx].occupied = true; });
 
       game.parkingSpaces.forEach((space, index) => {
         if (!space.occupied) return;
@@ -313,9 +230,9 @@
           x: space.x + space.w / 2,
           y: space.y + space.h / 2,
           width: 34,
-          length: 72,
+          length: 70,
           angle: 0,
-          color: (index % 2 === 0) ? '#586779' : '#6a7d8b'
+          color: index % 2 === 0 ? '#53677d' : '#6f8190'
         });
       });
 
@@ -324,42 +241,41 @@
       game.targetSlot.target = true;
 
       resetPlayer();
-      setStatus(`Level ${level}: Back into the highlighted bay and keep the lot clean.`, 'ready');
+      game.score += 0;
     }
 
     function updatePlayer(dt) {
       if (game.status !== 'playing') return;
 
-      const drive = keys['ArrowUp'] || keys['KeyW'];
+      const forward = keys['ArrowUp'] || keys['KeyW'];
       const reverse = keys['ArrowDown'] || keys['KeyS'];
       const left = keys['ArrowLeft'] || keys['KeyA'];
       const right = keys['ArrowRight'] || keys['KeyD'];
 
-      if (left) player.steer = clamp(player.steer - 0.075, -1.15, 1.15);
-      else if (right) player.steer = clamp(player.steer + 0.075, -1.15, 1.15);
-      else player.steer *= 0.78;
+      if (left) player.steer = clamp(player.steer - 0.08, -1.2, 1.2);
+      else if (right) player.steer = clamp(player.steer + 0.08, -1.2, 1.2);
+      else player.steer *= 0.8;
 
-      if (drive) player.speed += 0.17 * dt * 0.06;
-      else if (reverse) player.speed -= 0.15 * dt * 0.06;
-      else player.speed *= 0.985;
+      if (forward) player.speed += 0.16 * dt * 0.06;
+      else if (reverse) player.speed -= 0.14 * dt * 0.06;
+      else player.speed *= 0.986;
 
       player.speed = clamp(player.speed, -player.maxReverse, player.maxSpeed);
       const turnFactor = clamp(Math.abs(player.speed) / player.maxSpeed, 0.25, 1);
-      player.angle += (player.speed / 50) * player.steer * turnFactor;
+      player.angle += (player.speed / 48) * player.steer * turnFactor;
 
       const nextX = player.x + Math.cos(player.angle) * player.speed * 60 * (dt / 16.67);
       const nextY = player.y + Math.sin(player.angle) * player.speed * 60 * (dt / 16.67);
+      player.x = clamp(nextX, 32, canvas.width - 36);
+      player.y = clamp(nextY, 70, canvas.height - 44);
 
-      player.x = clamp(nextX, 48, canvas.width - 48);
-      player.y = clamp(nextY, 80, canvas.height - 60);
+      const hitchX = player.x - Math.cos(player.angle) * player.hitchLength;
+      const hitchY = player.y - Math.sin(player.angle) * player.hitchLength;
+      const desiredAngle = player.angle + player.steer * 0.15 * (Math.abs(player.speed) / player.maxSpeed);
 
-      const targetTrailerX = player.x - Math.cos(player.angle) * player.hitchLength;
-      const targetTrailerY = player.y - Math.sin(player.angle) * player.hitchLength;
-      const targetTrailerAngle = player.angle + player.steer * 0.25 * (Math.abs(player.speed) / player.maxSpeed);
-
-      player.trailerX += (targetTrailerX - player.trailerX) * 0.22;
-      player.trailerY += (targetTrailerY - player.trailerY) * 0.22;
-      player.trailerAngle += normalizeAngle(targetTrailerAngle - player.trailerAngle) * 0.18;
+      player.trailerX += (hitchX - player.trailerX) * 0.18;
+      player.trailerY += (hitchY - player.trailerY) * 0.18;
+      player.trailerAngle += normalizeAngle(desiredAngle - player.trailerAngle) * 0.16;
 
       audio.init();
       audio.setEngine(player.speed);
@@ -385,31 +301,28 @@
             game.collisions += 1;
             game.combo = 0;
             game.score = Math.max(0, game.score - 40);
-            player.speed *= -0.24;
+            player.speed *= -0.18;
+            audio.init();
             audio.hit();
-            setStatus('Contact! Slow down and line it up.', 'hit');
           }
           return;
         }
       }
 
-      const lotRect = { x: 24, y: 52, w: canvas.width - 48, h: canvas.height - 100 };
-      const out = player.x < lotRect.x || player.x > lotRect.x + lotRect.w || player.y < lotRect.y || player.y > lotRect.y + lotRect.h;
-      if (out) {
+      const lotBounds = { x: 20, y: 66, w: canvas.width - 40, h: canvas.height - 100 };
+      const outOfBounds = player.x < lotBounds.x || player.x > lotBounds.x + lotBounds.w || player.y < lotBounds.y || player.y > lotBounds.y + lotBounds.h;
+      if (outOfBounds) {
         const now = performance.now();
         if (now - game.lastHitAt > 350) {
           game.lastHitAt = now;
           game.collisions += 1;
           game.combo = 0;
-          game.score = Math.max(0, game.score - 20);
-          player.speed *= -0.18;
+          player.speed *= -0.22;
+          audio.init();
           audio.hit();
-          setStatus('Stay on the lot. The curb is not a parking spot.', 'hit');
         }
         return;
       }
-
-      setStatus(`Level ${game.level}: Back into the highlighted bay and keep the lot clean.`, 'ready');
     }
 
     function checkParking() {
@@ -420,30 +333,30 @@
       const cabRect = rectForVehicle(player.x, player.y, player.cabWidth, player.cabLength, player.angle);
       const trailerRect = rectForVehicle(player.trailerX, player.trailerY, player.trailerWidth, player.trailerLength, player.trailerAngle);
 
-      const insideBay =
-        cabRect.x > bayRect.x + 6 && cabRect.x + cabRect.w < bayRect.x + bayRect.w - 6 &&
-        cabRect.y > bayRect.y + 6 && cabRect.y + cabRect.h < bayRect.y + bayRect.h - 6 &&
-        trailerRect.x > bayRect.x + 6 && trailerRect.x + trailerRect.w < bayRect.x + bayRect.w - 6 &&
-        trailerRect.y > bayRect.y + 6 && trailerRect.y + trailerRect.h < bayRect.y + bayRect.h - 6;
+      const fullyInside =
+        cabRect.x > bayRect.x + 8 && cabRect.x + cabRect.w < bayRect.x + bayRect.w - 8 &&
+        cabRect.y > bayRect.y + 8 && cabRect.y + cabRect.h < bayRect.y + bayRect.h - 8 &&
+        trailerRect.x > bayRect.x + 8 && trailerRect.x + trailerRect.w < bayRect.x + bayRect.w - 8 &&
+        trailerRect.y > bayRect.y + 8 && trailerRect.y + trailerRect.h < bayRect.y + bayRect.h - 8;
 
-      const aligned = Math.abs(normalizeAngle(player.angle)) < 0.28;
-      const slowEnough = Math.abs(player.speed) < 0.18;
+      const aligned = Math.abs(normalizeAngle(player.angle)) < 0.25;
+      const slowEnough = Math.abs(player.speed) < 0.14;
 
-      if (insideBay && aligned && slowEnough) {
+      if (fullyInside && aligned && slowEnough) {
         game.status = 'parked';
         game.combo += 1;
         game.bestCombo = Math.max(game.bestCombo, game.combo);
         game.totalLoaded += 1;
-        game.score += 500 + game.level * 120 + game.combo * 100;
+        game.score += 600 + game.level * 140 + game.combo * 100;
 
-        const perfect = Math.abs(player.speed) < 0.08 && Math.abs(normalizeAngle(player.angle)) < 0.1;
+        const perfect = Math.abs(player.speed) < 0.06 && Math.abs(normalizeAngle(player.angle)) < 0.08;
         if (perfect) {
           game.perfectParks += 1;
-          game.score += 200;
+          game.score += 250;
         }
 
+        audio.init();
         audio.success();
-        setStatus(`Docked! Great job. Combo ${game.combo}x.`, 'parked');
 
         setTimeout(() => {
           game.level += 1;
@@ -454,31 +367,35 @@
 
     function drawBackground() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = '#0d171f';
+      ctx.fillStyle = '#0d151b';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = '#143d34';
-      ctx.fillRect(0, 0, canvas.width, 70);
-      ctx.fillRect(0, canvas.height - 70, canvas.width, 70);
+      ctx.fillStyle = '#123124';
+      ctx.fillRect(0, 0, canvas.width, 58);
+      ctx.fillRect(0, canvas.height - 58, canvas.width, 58);
 
-      ctx.fillStyle = '#2d3748';
-      ctx.fillRect(20, 70, canvas.width - 40, canvas.height - 140);
+      ctx.fillStyle = '#2d3944';
+      ctx.fillRect(20, 58, canvas.width - 40, canvas.height - 116);
 
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      // Painted lines to make lot feel real.
+      ctx.strokeStyle = 'rgba(255,255,255,0.13)';
       ctx.lineWidth = 2;
       for (let x = 60; x < canvas.width; x += 90) {
         ctx.beginPath();
-        ctx.moveTo(x, 70);
-        ctx.lineTo(x, canvas.height - 70);
+        ctx.moveTo(x, 58);
+        ctx.lineTo(x, canvas.height - 58);
         ctx.stroke();
       }
+      ctx.beginPath();
+      ctx.moveTo(0, 58); ctx.lineTo(canvas.width, 58);
+      ctx.moveTo(0, canvas.height - 58); ctx.lineTo(canvas.width, canvas.height - 58);
+      ctx.stroke();
     }
 
     function drawParkingSpaces() {
       for (const space of game.parkingSpaces) {
         ctx.save();
-        ctx.fillStyle = space.target ? 'rgba(248,199,90,0.18)' : 'rgba(255,255,255,0.04)';
+        ctx.fillStyle = space.target ? 'rgba(248,199,90,0.22)' : 'rgba(255,255,255,0.04)';
         ctx.strokeStyle = space.target ? '#f8c75a' : '#edf3ff';
         ctx.lineWidth = space.target ? 4 : 2;
         ctx.fillRect(space.x, space.y, space.w, space.h);
@@ -504,25 +421,25 @@
       ctx.restore();
     }
 
-    function drawTrailer(x, y, angle, color) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(angle);
-      ctx.fillStyle = color;
-      ctx.fillRect(-40, -16, 80, 32);
-      ctx.fillStyle = 'rgba(255,255,255,0.26)';
-      ctx.fillRect(-34, -12, 68, 24);
-      ctx.restore();
-    }
-
     function drawCab(x, y, angle, color) {
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(angle);
       ctx.fillStyle = color;
       ctx.fillRect(-18, -12, 36, 24);
-      ctx.fillStyle = '#dbeafe';
-      ctx.fillRect(-5, -8, 18, 16);
+      ctx.fillStyle = '#dfe7f2';
+      ctx.fillRect(-6, -8, 12, 16);
+      ctx.restore();
+    }
+
+    function drawTrailer(x, y, angle, color) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.fillStyle = color;
+      ctx.fillRect(-40, -14, 80, 28);
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillRect(-34, -11, 68, 22);
       ctx.restore();
     }
 
@@ -531,11 +448,26 @@
       drawCab(player.x, player.y, player.angle, '#ef4444');
     }
 
+    function drawStatusPanel() {
+      const statusText = game.status === 'parked'
+        ? `Level ${game.level} • parked • combo ${game.combo}x`
+        : `Level ${game.level} • target: bay ${game.targetSlot ? game.targetSlot.id + 1 : 0} • score ${game.score}`;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(11, 17, 24, 0.72)';
+      ctx.fillRect(18, canvas.height - 42, Math.min(440, canvas.width - 36), 24);
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 14px Arial';
+      ctx.fillText(statusText, 28, canvas.height - 24);
+      ctx.restore();
+    }
+
     function draw() {
       drawBackground();
       drawParkingSpaces();
-      for (const parked of game.parkedTrucks) drawParkedTruck(parked);
+      for (const truck of game.parkedTrucks) drawParkedTruck(truck);
       drawTruck();
+      drawStatusPanel();
     }
 
     function loop(timestamp) {
@@ -560,7 +492,7 @@
       });
     }
 
-    function startGame() {
+    function start() {
       game.score = 0;
       game.combo = 0;
       game.bestCombo = 0;
@@ -573,8 +505,8 @@
       animationId = requestAnimationFrame(loop);
     }
 
-    audio.init();
     initControls();
+    audio.init();
     buildLevel(1);
     animationId = requestAnimationFrame(loop);
   </script>
